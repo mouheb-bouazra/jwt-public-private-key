@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { generateKeyPair, exportJWK, SignJWT, jwtVerify } = require('jose');
+const crypto = require('crypto');
 
 const keys = {}
 
@@ -58,6 +59,15 @@ router.get('/verify-token', async function (req, res, next) {
   }
 });
 
+/* GET generate rsa public key. */
+router.get('/generate-rsa-public-key', async function (req, res, next) {
+  try {
+    const publicJwk = await convertKeyStringToRsaKey(keys.publicKeyString)
+    return res.json({ publicJwk });
+  } catch (error) {
+    return res.json({ error: error?.message })
+  }
+});
 
 const generateKeys = async () => {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
@@ -66,6 +76,7 @@ const generateKeys = async () => {
     type: 'pkcs1',
     format: 'pem',
   });
+
   keys.privateKeyString = privateKey.export({
     type: 'pkcs1',
     format: 'pem',
@@ -76,5 +87,12 @@ const generateKeys = async () => {
 
   return keys
 }
+
+const convertKeyStringToRsaKey = async (keyString) => {
+  // Ensure the key string is properly formatted
+  const formattedKeyString = keyString.replace(/\\n/g, '\n');
+  const cryptoPublicKey = crypto.createPublicKey(formattedKeyString);
+  return await exportJWK(cryptoPublicKey); // publicJwk
+};
 
 module.exports = router;
